@@ -17,8 +17,8 @@ async function generateSchedule() {
             WHERE s.schedule_id IS NULL
             ORDER BY j.due_date ASC
         `);
-        const [machines] = await db.execute('SELECT * FROM machines WHERE status != "Breakdown"');
-        const [workers] = await db.execute('SELECT * FROM workers WHERE status != "Leave"');
+        const [machines] = await db.execute("SELECT * FROM machines WHERE status != 'Breakdown'");
+        const [workers] = await db.execute("SELECT * FROM workers WHERE status != 'Leave'");
 
         // Sort by Priority (High->Low) then Deadline
         const sortedJobs = jobs.sort((a, b) => {
@@ -96,9 +96,9 @@ async function generateSchedule() {
 async function reschedule() {
     try {
         // Reset Logic Flow
-        await db.execute('DELETE FROM schedule WHERE status = "Scheduled"');
-        await db.execute('UPDATE machines SET status = "Available" WHERE status = "Busy"');
-        await db.execute('UPDATE workers SET status = "Available" WHERE status = "Busy"');
+        await db.execute("DELETE FROM schedule WHERE status = 'Scheduled'");
+        await db.execute("UPDATE machines SET status = 'Available' WHERE status = 'Busy'");
+        await db.execute("UPDATE workers SET status = 'Available' WHERE status = 'Busy'");
 
         return await generateSchedule();
     } catch (error) {
@@ -115,13 +115,13 @@ async function updateScheduleStatus() {
 
         // 1. Terminate finished jobs IMMEDIATELY using Local Time comparison
         const [toComplete] = await db.execute(
-            'SELECT schedule_id FROM schedule WHERE status = "Scheduled" AND end_time <= ?',
+            "SELECT schedule_id FROM schedule WHERE status = 'Scheduled' AND end_time <= ?",
             [currentTime]
         );
 
         if (toComplete.length > 0) {
             await db.execute(
-                'UPDATE schedule SET status = "Completed" WHERE status = "Scheduled" AND end_time <= ?',
+                "UPDATE schedule SET status = 'Completed' WHERE status = 'Scheduled' AND end_time <= ?",
                 [currentTime]
             );
             console.log(`[REALTIME] Terminated ${toComplete.length} jobs at ${currentTime} (Local)`);
@@ -129,7 +129,7 @@ async function updateScheduleStatus() {
 
         // 2. Refresh resource states based on LIVE active jobs
         const [activeSchedules] = await db.execute(
-            'SELECT machine_id, worker_id FROM schedule WHERE status = "Scheduled" AND start_time <= ? AND end_time > ?',
+            "SELECT machine_id, worker_id FROM schedule WHERE status = 'Scheduled' AND start_time <= ? AND end_time > ?",
             [currentTime, currentTime]
         );
 
@@ -143,9 +143,9 @@ async function updateScheduleStatus() {
             if (m.status === 'Breakdown') continue;
 
             if (shouldBeBusy && m.status !== 'Busy') {
-                await db.execute('UPDATE machines SET status = "Busy" WHERE machine_id = ?', [m.machine_id]);
+                await db.execute("UPDATE machines SET status = 'Busy' WHERE machine_id = ?", [m.machine_id]);
             } else if (!shouldBeBusy && m.status === 'Busy') {
-                await db.execute('UPDATE machines SET status = "Available" WHERE machine_id = ?', [m.machine_id]);
+                await db.execute("UPDATE machines SET status = 'Available' WHERE machine_id = ?", [m.machine_id]);
             }
         }
 
@@ -156,9 +156,9 @@ async function updateScheduleStatus() {
             if (w.status === 'Leave') continue;
 
             if (shouldBeBusy && w.status !== 'Busy') {
-                await db.execute('UPDATE workers SET status = "Busy" WHERE worker_id = ?', [w.worker_id]);
+                await db.execute("UPDATE workers SET status = 'Busy' WHERE worker_id = ?", [w.worker_id]);
             } else if (!shouldBeBusy && w.status === 'Busy') {
-                await db.execute('UPDATE workers SET status = "Available" WHERE worker_id = ?', [w.worker_id]);
+                await db.execute("UPDATE workers SET status = 'Available' WHERE worker_id = ?", [w.worker_id]);
             }
         }
 

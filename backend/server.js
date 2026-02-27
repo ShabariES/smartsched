@@ -250,8 +250,8 @@ app.put('/api/reschedule', async (req, res) => {
 app.get('/api/dashboard', async (req, res) => {
     try {
         const [[{ totalJobs }]] = await db.execute('SELECT COUNT(*) as totalJobs FROM jobs');
-        const [[{ availMachines }]] = await db.execute('SELECT COUNT(*) as availMachines FROM machines WHERE status = "Available"');
-        const [[{ availWorkers }]] = await db.execute('SELECT COUNT(*) as availWorkers FROM workers WHERE status = "Available"');
+        const [[{ availMachines }]] = await db.execute("SELECT COUNT(*) as availMachines FROM machines WHERE status = 'Available'");
+        const [[{ availWorkers }]] = await db.execute("SELECT COUNT(*) as availWorkers FROM workers WHERE status = 'Available'");
 
         const [machines] = await db.execute('SELECT status FROM machines');
         const [workers] = await db.execute('SELECT status FROM workers');
