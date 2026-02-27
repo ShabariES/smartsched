@@ -16,9 +16,45 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 
 
 
-// Table Initialization
+// Table Initialization System (Zero-Manual-Setup)
 (async () => {
     try {
+        console.log("Verifying Database Infrastructure...");
+
+        // 1. Jobs Table
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS jobs (
+                job_id INT AUTO_INCREMENT PRIMARY KEY,
+                job_name VARCHAR(255) NOT NULL,
+                processing_time INT NOT NULL,
+                due_date DATETIME NOT NULL,
+                priority ENUM('High', 'Medium', 'Low') NOT NULL,
+                required_machine VARCHAR(255),
+                required_skill VARCHAR(255)
+            )
+        `);
+
+        // 2. Machines Table
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS machines (
+                machine_id VARCHAR(50) PRIMARY KEY,
+                machine_name VARCHAR(255) NOT NULL,
+                status ENUM('Available', 'Busy', 'Breakdown', 'Maintenance') DEFAULT 'Available'
+            )
+        `);
+
+        // 3. Workers Table
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS workers (
+                worker_id VARCHAR(50) PRIMARY KEY,
+                worker_name VARCHAR(255) NOT NULL,
+                skill VARCHAR(255) NOT NULL,
+                shift ENUM('Day', 'Night') NOT NULL,
+                status ENUM('Available', 'Busy', 'Leave') DEFAULT 'Available'
+            )
+        `);
+
+        // 4. Admins Table
         await db.execute(`
             CREATE TABLE IF NOT EXISTS admins (
                 admin_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -28,7 +64,24 @@ app.use(express.static(path.join(__dirname, '../frontend')));
                 role VARCHAR(50) DEFAULT 'Executive'
             )
         `);
-        // Seed Default Admin if empty
+
+        // 5. Schedule Table
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS schedule (
+                schedule_id INT AUTO_INCREMENT PRIMARY KEY,
+                job_id INT,
+                machine_id VARCHAR(50),
+                worker_id VARCHAR(50),
+                start_time DATETIME,
+                end_time DATETIME,
+                status ENUM('Scheduled', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
+                FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE,
+                FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE SET NULL,
+                FOREIGN KEY (worker_id) REFERENCES workers(worker_id) ON DELETE SET NULL
+            )
+        `);
+
+        // Seed Default Admin if system is fresh
         const [rows] = await db.execute('SELECT COUNT(*) as count FROM admins');
         if (rows[0].count === 0) {
             const defaultPass = await bcrypt.hash('shabari@2026', 10);
@@ -36,11 +89,12 @@ app.use(express.static(path.join(__dirname, '../frontend')));
                 'INSERT INTO admins (full_name, username, password, role) VALUES (?, ?, ?, ?)',
                 ['Shabari E S', 'shabari', defaultPass, 'Admin']
             );
-            console.log("Default Admin Seeded.");
+            console.log("Default Admin Seeded successfully.");
         }
-        console.log("Admin Infrastructure Verified.");
+
+        console.log("Database Sync: COMPLETE. System ready.");
     } catch (e) {
-        console.error("Initialization Error:", e);
+        console.error("CRITICAL: Database Initialization Failed ->", e.message);
     }
 })();
 
