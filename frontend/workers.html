@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workers | Smart Scheduler</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+</head>
+
+<body>
+    <div id="vanta-bg"></div>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <i class="fas fa-microchip"></i> <span>SMARTSCHED</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a></li>
+            <li><a href="jobs.html"><i class="fas fa-tasks"></i> <span>Jobs</span></a></li>
+            <li><a href="machines.html"><i class="fas fa-industry"></i> <span>Machines</span></a></li>
+            <li><a href="workers.html" class="active"><i class="fas fa-users-gear"></i> <span>Workers</span></a></li>
+            <li><a href="schedule.html"><i class="fas fa-calendar-alt"></i> <span>Schedule</span></a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="avatar">AD</div>
+            <div class="profile-info">
+                <div class="profile-name">Admin Node</div>
+                <div class="profile-role">System Overseer</div>
+            </div>
+            <button class="logout-btn" onclick="logout()" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div>
+                <p>Human Capital</p>
+                <h1>Worker Registry</h1>
+            </div>
+        </header>
+
+        <section class="form-card">
+            <div class="card-title" style="margin-bottom: 2rem;">Onboard New Personnel</div>
+            <form id="workerForm">
+                <div class="form-group">
+                    <label>Employee Identifier</label>
+                    <input type="text" id="workerId" class="form-control" placeholder="WKR-405" required>
+                </div>
+                <div class="form-group">
+                    <label>Full Nomenclature</label>
+                    <input type="text" id="workerName" class="form-control" placeholder="John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label>Technical Specialization</label>
+                    <input type="text" id="workerSkill" class="form-control"
+                        placeholder="Precision Assembly, TIG Welding" required>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        <i class="fas fa-info-circle"></i> Tip: Use commas to separate multiple skills (e.g. CNC,
+                        Welding, Milling)
+                    </p>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Operational Shift</label>
+                        <select id="workerShift" class="form-control">
+                            <option value="Day">Diurnal (Day)</option>
+                            <option value="Night">Nocturnal (Night)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Current Availability</label>
+                        <select id="workerStatus" class="form-control">
+                            <option value="Available">Active - Available</option>
+                            <option value="Leave">Offline - On Leave</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    <i class="fas fa-plus"></i> Register Personnel
+                </button>
+            </form>
+        </section>
+
+        <section class="table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div class="card-title" style="margin: 1rem 1.5rem;">Workforce Directory</div>
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="workerSearch" class="search-input"
+                        placeholder="Search by ID, name or skill...">
+                </div>
+            </div>
+            <table id="workersTable">
+                <thead>
+                    <tr>
+                        <th>Employee ID</th>
+                        <th>Name</th>
+                        <th>Specialization</th>
+                        <th>Shift</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Workers will be injected here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <div id="toast-container"></div>
+    <script src="js/common.js"></script>
+    <script src="js/workers.js"></script>
+    <script>
+        VANTA.NET({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0xff4d00,
+            backgroundColor: 0xfff9f0,
+            points: 15.00,
+            maxDistance: 25.00,
+            spacing: 20.00
+        })
+    </script>
+</body>
+
+</html>
