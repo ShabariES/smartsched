@@ -163,3 +163,6 @@ document.getElementById('rescheduleBtn').addEventListener('click', async () => {
 });
 
 fetchDashboard();
+
+// Auto-refresh every 20 seconds
+setInterval(fetchDashboard, 20000);

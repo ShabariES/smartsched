@@ -6,12 +6,21 @@ async function fetchSchedule() {
     // Sync completion status before fetching
     try { await fetch(`${API_URL}/updateStatus`, { method: 'POST' }); } catch (e) { }
 
-    const res = await fetch(`${API_URL}/schedule`);
-    allSchedule = await res.json();
+    const [resSchedule, resMachines, resWorkers] = await Promise.all([
+        fetch(`${API_URL}/schedule`),
+        fetch(`${API_URL}/machines`),
+        fetch(`${API_URL}/workers`)
+    ]);
+
+    allSchedule = await resSchedule.json();
+    const machines = await resMachines.json();
+    const workers = await resWorkers.json();
+
     console.log(`Fetched ${allSchedule.length} schedule items.`);
 
     populateTable(allSchedule);
     renderGanttChart(allSchedule);
+    renderImpactCharts(allSchedule, machines, workers);
 }
 
 document.getElementById('scheduleSearch')?.addEventListener('input', (e) => {
@@ -188,88 +197,165 @@ document.getElementById('rescheduleBtn').addEventListener('click', async () => {
     finally { btn.innerHTML = originalText; btn.disabled = false; }
 });
 
-// Render bottom charts
-function renderImpactCharts() {
+// Render bottom charts with real data
+let utilTrendChart = null;
+let jobStatusChart = null;
+
+function renderImpactCharts(schedule, machines, workers) {
     const trendContainer = document.getElementById('utilizationTrends');
     const distContainer = document.getElementById('jobStatusDist');
 
     if (!trendContainer || !distContainer) return;
 
-    trendContainer.innerHTML = '<canvas id="utilTrendChart"></canvas>';
-    distContainer.innerHTML = '<canvas id="jobStatusChart"></canvas>';
+    // 1. Calculate Job Status Distribution
+    const now = new Date();
+    let completed = 0, running = 0, onDeck = 0, delayed = 0;
 
-    const trendCtx = document.getElementById('utilTrendChart');
-    const distCtx = document.getElementById('jobStatusChart');
+    schedule.forEach(item => {
+        const start = new Date(item.start_time);
+        const end = new Date(item.end_time);
 
-    new Chart(trendCtx, {
-        type: 'line',
-        data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{
-                label: 'Machine utilization',
-                data: [65, 70, 80, 81, 75, 89, 85],
-                borderColor: '#ff4d00',
-                tension: 0.4,
-                borderWidth: 3,
-                pointRadius: 4,
-                pointBackgroundColor: '#fff',
-                pointBorderWidth: 2,
-                fill: true,
-                backgroundColor: 'rgba(255, 77, 0, 0.05)'
-            }, {
-                label: 'Worker utilization',
-                data: [60, 68, 75, 78, 70, 80, 77],
-                borderColor: '#2d1600',
-                tension: 0.4,
-                borderWidth: 3,
-                pointRadius: 4,
-                pointBackgroundColor: '#fff',
-                pointBorderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { family: 'Outfit' } } },
-                x: { grid: { display: false }, ticks: { font: { family: 'Outfit' } } }
-            },
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: { font: { family: 'Outfit', weight: '600' }, usePointStyle: true, padding: 20 }
-                }
-            }
+        if (item.status === 'Completed') {
+            completed++;
+        } else if (now > end) {
+            delayed++;
+        } else if (now >= start && now <= end) {
+            running++;
+        } else {
+            onDeck++;
         }
     });
 
-    new Chart(distCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Completed', 'Running', 'On-Deck', 'Delayed'],
-            datasets: [{
-                data: [45, 25, 20, 10],
-                backgroundColor: ['#10b981', '#ff4d00', '#f59e0b', '#dc2626'],
-                borderWidth: 0,
-                hoverOffset: 15
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '75%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        font: { family: 'Outfit', weight: '500' },
-                        usePointStyle: true,
-                        padding: 20
+    // 2. Calculate Utilization Trends (Current Week)
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const machineData = new Array(7).fill(0);
+    const workerData = new Array(7).fill(0);
+
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 is Sun, 1 is Mon...
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
+    monday.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 7; i++) {
+        const dayStart = new Date(monday);
+        dayStart.setDate(monday.getDate() + i);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayStart.getDate() + 1);
+
+        let machineHours = 0;
+        let workerHours = 0;
+
+        schedule.forEach(item => {
+            const start = new Date(item.start_time);
+            const end = new Date(item.end_time);
+
+            // Calculate overlap between [start, end] and [dayStart, dayEnd]
+            const overlapStart = new Date(Math.max(start, dayStart));
+            const overlapEnd = new Date(Math.min(end, dayEnd));
+
+            if (overlapStart < overlapEnd) {
+                const overlapMs = overlapEnd - overlapStart;
+                const overlapHrs = overlapMs / (1000 * 60 * 60);
+                machineHours += overlapHrs;
+                workerHours += overlapHrs; // Assuming 1 worker per machine
+            }
+        });
+
+        const totalMachineHoursAvailable = (machines.length || 1) * 24;
+        const totalWorkerHoursAvailable = (workers.length || 1) * 24;
+
+        machineData[i] = Math.min(100, (machineHours / totalMachineHoursAvailable) * 100);
+        workerData[i] = Math.min(100, (workerHours / totalWorkerHoursAvailable) * 100);
+    }
+
+    // 3. Render/Update Trends Chart
+    const trendCtx = document.getElementById('utilTrendChart');
+    if (utilTrendChart) {
+        utilTrendChart.data.datasets[0].data = machineData;
+        utilTrendChart.data.datasets[1].data = workerData;
+        utilTrendChart.update();
+    } else {
+        utilTrendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'Machine utilization',
+                    data: machineData,
+                    borderColor: '#ff4d00',
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(255, 77, 0, 0.05)'
+                }, {
+                    label: 'Worker utilization',
+                    data: workerData,
+                    borderColor: '#2d1600',
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { family: 'Outfit' } } },
+                    x: { grid: { display: false }, ticks: { font: { family: 'Outfit' } } }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { family: 'Outfit', weight: '600' }, usePointStyle: true, padding: 20 }
                     }
                 }
             }
-        }
-    });
+        });
+    }
+
+    // 4. Render/Update Status Distribution Chart
+    const distCtx = document.getElementById('jobStatusChart');
+    if (jobStatusChart) {
+        jobStatusChart.data.datasets[0].data = [completed, running, onDeck, delayed];
+        jobStatusChart.update();
+    } else {
+        jobStatusChart = new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Running', 'On-Deck', 'Delayed'],
+                datasets: [{
+                    data: [completed, running, onDeck, delayed],
+                    backgroundColor: ['#10b981', '#ff4d00', '#f59e0b', '#dc2626'],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { family: 'Outfit', weight: '500' },
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
-fetchSchedule().then(renderImpactCharts);
+fetchSchedule();
+
+// Real-time update every 30 seconds
+setInterval(fetchSchedule, 30000);
