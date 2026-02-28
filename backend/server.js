@@ -150,6 +150,9 @@ app.post('/api/addJob', async (req, res) => {
             [name, time, dueDate, priority, machine, skill]
         );
 
+        // REAL-TIME CONNECTION: Automatically find a slot for this new data entry
+        await generateSchedule();
+
         const [rows] = await db.execute('SELECT * FROM jobs WHERE job_id = ?', [result.insertId]);
         res.status(201).json(rows);
     } catch (error) {
