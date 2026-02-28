@@ -252,9 +252,20 @@ app.put('/api/reschedule', async (req, res) => {
 // 5. Dashboard Endpoint
 app.get('/api/dashboard', async (req, res) => {
     try {
-        const [[{ totalJobs }]] = await db.execute('SELECT COUNT(*) as totalJobs FROM jobs');
-        const [[{ availMachines }]] = await db.execute("SELECT COUNT(*) as availMachines FROM machines WHERE status = 'Available'");
-        const [[{ availWorkers }]] = await db.execute("SELECT COUNT(*) as availWorkers FROM workers WHERE status = 'Available'");
+        // Refactored counts for maximum resilience
+        const getCount = async (sql) => {
+            try {
+                const [rows] = await db.execute(sql);
+                return rows.length > 0 ? Object.values(rows[0])[0] : 0;
+            } catch (e) {
+                console.error(`Query Failed: ${sql} ->`, e.message);
+                return 0;
+            }
+        };
+
+        const totalJobs = await getCount('SELECT COUNT(*) FROM jobs');
+        const availMachines = await getCount("SELECT COUNT(*) FROM machines WHERE status = 'Available'");
+        const availWorkers = await getCount("SELECT COUNT(*) FROM workers WHERE status = 'Available'");
 
         const [machines] = await db.execute('SELECT status FROM machines');
         const [workers] = await db.execute('SELECT status FROM workers');
@@ -264,8 +275,8 @@ app.get('/api/dashboard', async (req, res) => {
 
         // 3. Weekly Utilization Trends Calculation
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const machineData = new Array(7).fill(0);
-        const workerData = new Array(7).fill(0);
+        const machineData = new Array(7).fill("0.0");
+        const workerData = new Array(7).fill("0.0");
 
         const todayDate = new Date();
         const currentDayOfWk = todayDate.getDay();
@@ -310,10 +321,10 @@ app.get('/api/dashboard', async (req, res) => {
         `);
 
         // 4. Job Status Distribution
-        const [[{ completedCount }]] = await db.execute("SELECT COUNT(*) as completedCount FROM schedule WHERE status = 'Completed'");
-        const [[{ runningCount }]] = await db.execute("SELECT COUNT(*) as runningCount FROM schedule WHERE status = 'Scheduled' AND start_time <= NOW() AND end_time > NOW()");
-        const [[{ onDeckCount }]] = await db.execute("SELECT COUNT(*) as onDeckCount FROM schedule WHERE status = 'Scheduled' AND start_time > NOW()");
-        const [[{ delayedCount }]] = await db.execute("SELECT COUNT(*) as delayedCount FROM schedule WHERE status = 'Scheduled' AND end_time < NOW()");
+        const completedCount = await getCount("SELECT COUNT(*) FROM schedule WHERE status = 'Completed'");
+        const runningCount = await getCount("SELECT COUNT(*) FROM schedule WHERE status = 'Scheduled' AND start_time <= NOW() AND end_time > NOW()");
+        const onDeckCount = await getCount("SELECT COUNT(*) FROM schedule WHERE status = 'Scheduled' AND start_time > NOW()");
+        const delayedCount = await getCount("SELECT COUNT(*) FROM schedule WHERE status = 'Scheduled' AND end_time < NOW()");
 
         res.json({
             totalJobs,
