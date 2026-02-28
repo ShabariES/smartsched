@@ -38,11 +38,84 @@ async function fetchDashboard() {
             listContainer.innerHTML = '<p style="color: var(--text-muted); font-weight: 500; text-align: center; padding: 2rem;">No active operations for now.</p>';
         }
 
-        // 4. Update core Graph
+        // 4. Update core Graphs
         renderUtilizationChart(parseFloat(data.machineUtilization), parseFloat(data.workerUtilization));
+        renderWeeklyTrends(data.weeklyTrends);
+        renderStatusDistribution(data.statusDistribution);
     } catch (error) {
         console.error("Dashboard Sync Error:", error);
     }
+}
+
+let weeklyTrendChart = null;
+let statusDistChart = null;
+
+function renderWeeklyTrends(trendData) {
+    const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
+    if (weeklyTrendChart) weeklyTrendChart.destroy();
+
+    weeklyTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trendData.labels,
+            datasets: [{
+                label: 'Machine utilization',
+                data: trendData.machineData,
+                borderColor: '#ff4d00',
+                backgroundColor: 'rgba(255, 77, 0, 0.05)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointRadius: 4,
+                pointBackgroundColor: '#fff'
+            }, {
+                label: 'Worker utilization',
+                data: trendData.workerData,
+                borderColor: '#2d1600',
+                tension: 0.4,
+                borderWidth: 3,
+                pointRadius: 4,
+                pointBackgroundColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+                x: { grid: { display: false } }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { font: { family: 'Outfit' } } }
+            }
+        }
+    });
+}
+
+function renderStatusDistribution(distData) {
+    const ctx = document.getElementById('statusDistChart').getContext('2d');
+    if (statusDistChart) statusDistChart.destroy();
+
+    statusDistChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Running', 'On-Deck', 'Delayed'],
+            datasets: [{
+                data: distData,
+                backgroundColor: ['#10b981', '#ff4d00', '#f59e0b', '#dc2626'],
+                borderWidth: 0,
+                hoverOffset: 15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { family: 'Outfit', weight: '500' }, usePointStyle: true, padding: 20 } }
+            }
+        }
+    });
 }
 
 function renderUtilizationChart(mUtil, wUtil) {

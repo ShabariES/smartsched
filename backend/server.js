@@ -259,14 +259,49 @@ app.get('/api/dashboard', async (req, res) => {
         const machineUtil = machines.length ? (machines.filter(m => m.status === 'Busy').length / machines.length) * 100 : 0;
         const workerUtil = workers.length ? (workers.filter(w => w.status === 'Busy').length / workers.length) * 100 : 0;
 
-        const [todaySchedule] = await db.execute(`
-            SELECT s.*, j.job_name, m.machine_name 
-            FROM schedule s
-            JOIN jobs j ON s.job_id = j.job_id
-            JOIN machines m ON s.machine_id = m.machine_id
-            WHERE s.status = 'Scheduled' OR s.end_time >= NOW()
-            ORDER BY s.status DESC, s.start_time ASC
-        `);
+        // 3. Weekly Utilization Trends Calculation
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const machineData = new Array(7).fill(0);
+        const workerData = new Array(7).fill(0);
+
+        const todayDate = new Date();
+        const currentDayOfWk = todayDate.getDay();
+        const mondayDate = new Date(todayDate);
+        mondayDate.setDate(todayDate.getDate() - (currentDayOfWk === 0 ? 6 : currentDayOfWk - 1));
+        mondayDate.setHours(0, 0, 0, 0);
+
+        const [allSchedules] = await db.execute('SELECT start_time, end_time FROM schedule');
+        const [allMachines] = await db.execute('SELECT machine_id FROM machines');
+        const [allWorkers] = await db.execute('SELECT worker_id FROM workers');
+
+        for (let i = 0; i < 7; i++) {
+            const dStart = new Date(mondayDate);
+            dStart.setDate(mondayDate.getDate() + i);
+            const dEnd = new Date(dStart);
+            dEnd.setDate(dStart.getDate() + 1);
+
+            let mHrs = 0;
+            allSchedules.forEach(s => {
+                const sTime = new Date(s.start_time);
+                const eTime = new Date(s.end_time);
+                const overlapS = new Date(Math.max(sTime, dStart));
+                const overlapE = new Date(Math.min(eTime, dEnd));
+                if (overlapS < overlapE) {
+                    mHrs += (overlapE - overlapS) / (1000 * 60 * 60);
+                }
+            });
+
+            const availMHrs = (allMachines.length || 1) * 24;
+            const availWHrs = (allWorkers.length || 1) * 24;
+            machineData[i] = Math.min(100, (mHrs / availMHrs) * 100).toFixed(1);
+            workerData[i] = Math.min(100, (mHrs / availWHrs) * 100).toFixed(1);
+        }
+
+        // 4. Job Status Distribution
+        const [[{ completedCount }]] = await db.execute("SELECT COUNT(*) as completedCount FROM schedule WHERE status = 'Completed'");
+        const [[{ runningCount }]] = await db.execute("SELECT COUNT(*) as runningCount FROM schedule WHERE status = 'Scheduled' AND start_time <= NOW() AND end_time > NOW()");
+        const [[{ onDeckCount }]] = await db.execute("SELECT COUNT(*) as onDeckCount FROM schedule WHERE status = 'Scheduled' AND start_time > NOW()");
+        const [[{ delayedCount }]] = await db.execute("SELECT COUNT(*) as delayedCount FROM schedule WHERE status = 'Scheduled' AND end_time < NOW()");
 
         res.json({
             totalJobs,
@@ -274,7 +309,9 @@ app.get('/api/dashboard', async (req, res) => {
             availWorkers,
             machineUtilization: machineUtil.toFixed(1),
             workerUtilization: workerUtil.toFixed(1),
-            todaySchedule
+            todaySchedule,
+            weeklyTrends: { machineData, workerData, labels: days },
+            statusDistribution: [completedCount, runningCount, onDeckCount, delayedCount]
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

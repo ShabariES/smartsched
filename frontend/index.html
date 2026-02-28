@@ -75,13 +75,28 @@
 
         <section class="stats-grid responsive-layout">
             <div class="card chart-card">
-                <div class="card-title">Utilization Analytics</div>
+                <div class="card-title">Capacity Utilization</div>
                 <div class="chart-container" style="height: 350px; position: relative;">
                     <canvas id="utilChart"></canvas>
                 </div>
             </div>
+            <div class="card chart-card">
+                <div class="card-title">Weekly Utilization Trends</div>
+                <div class="chart-container" style="height: 350px; position: relative;">
+                    <canvas id="weeklyTrendChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-grid responsive-layout" style="margin-top: 2rem;">
+            <div class="card chart-card">
+                <div class="card-title">Job Status Distribution</div>
+                <div class="chart-container" style="height: 350px; position: relative;">
+                    <canvas id="statusDistChart"></canvas>
+                </div>
+            </div>
             <div class="card timeline-card">
-                <div class="card-title">Today's Timeline</div>
+                <div class="card-title">Live Production Feed</div>
                 <div id="todayScheduleList" style="margin-top: 1.5rem; flex: 1; overflow-y: auto; max-height: 350px;">
                     <!-- Schedule items will be injected here -->
                 </div>
