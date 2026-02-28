@@ -67,3 +67,6 @@ workerForm.addEventListener('submit', async (e) => {
 });
 
 fetchWorkers();
+
+// Auto-refresh every 30 seconds
+setInterval(fetchWorkers, 30000);

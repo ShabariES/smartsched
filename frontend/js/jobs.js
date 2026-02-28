@@ -73,3 +73,6 @@ jobForm.addEventListener('submit', async (e) => {
 });
 
 fetchJobs();
+
+// Auto-refresh every 30 seconds
+setInterval(fetchJobs, 30000);

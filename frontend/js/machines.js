@@ -72,3 +72,6 @@ machineForm.addEventListener('submit', async (e) => {
 });
 
 fetchMachines();
+
+// Auto-refresh every 30 seconds
+setInterval(fetchMachines, 30000);
