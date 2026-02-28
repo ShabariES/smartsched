@@ -300,6 +300,15 @@ app.get('/api/dashboard', async (req, res) => {
             workerData[i] = Math.min(100, (mHrs / availWHrs) * 100).toFixed(1);
         }
 
+        const [todaySchedule] = await db.execute(`
+            SELECT s.*, j.job_name, m.machine_name 
+            FROM schedule s
+            JOIN jobs j ON s.job_id = j.job_id
+            JOIN machines m ON s.machine_id = m.machine_id
+            WHERE s.status = 'Scheduled' OR s.end_time >= NOW()
+            ORDER BY s.status DESC, s.start_time ASC
+        `);
+
         // 4. Job Status Distribution
         const [[{ completedCount }]] = await db.execute("SELECT COUNT(*) as completedCount FROM schedule WHERE status = 'Completed'");
         const [[{ runningCount }]] = await db.execute("SELECT COUNT(*) as runningCount FROM schedule WHERE status = 'Scheduled' AND start_time <= NOW() AND end_time > NOW()");

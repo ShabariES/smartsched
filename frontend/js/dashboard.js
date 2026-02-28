@@ -39,9 +39,9 @@ async function fetchDashboard() {
         }
 
         // 4. Update core Graphs
-        renderUtilizationChart(parseFloat(data.machineUtilization), parseFloat(data.workerUtilization));
-        renderWeeklyTrends(data.weeklyTrends);
-        renderStatusDistribution(data.statusDistribution);
+        if (data.machineUtilization) renderUtilizationChart(parseFloat(data.machineUtilization), parseFloat(data.workerUtilization));
+        if (data.weeklyTrends) renderWeeklyTrends(data.weeklyTrends);
+        if (data.statusDistribution) renderStatusDistribution(data.statusDistribution);
     } catch (error) {
         console.error("Dashboard Sync Error:", error);
     }
